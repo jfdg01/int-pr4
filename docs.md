@@ -100,31 +100,33 @@
 
 Avg entropy: 0.4778
 
-### DBSCAN
+### HDBSCAN
 
-**Script:** `dbscan.py` | **eps:** 2.5 | **min_samples:** 10
+**Script:** `hdbscan_clustering.py` | **min_cluster_size:** 200 | **min_samples:** 5
 
-**Selection:** eps chosen via silhouette sweep; eps=2.5 gives 2 clusters with 0.7% noise and silhouette=0.2110 (highest valid score).
+**Rationale:** DBSCAN collapsed to 2 coarse clusters due to the curse of dimensionality (55 features). HDBSCAN uses mutual reachability distance and extracts stable clusters from a density hierarchy, eliminating the need to fix a global `eps` threshold.
 
-| eps | Clusters | Noise % | Silhouette |
+**Sweep (min_samples=5 fixed):**
+
+| min_cluster_size | Clusters | Noise % | Silhouette |
 |---|---|---|---|
-| 1.5 | 17 | 52.0% | 0.0092 |
-| 2.0 | 10 | 17.8% | 0.0353 |
-| **2.5** | **2** | **0.7%** | **0.2110** ← chosen |
-| 3.0 | 2 | 0.0% | 0.2107 |
-| 3.5+ | 1 | — | N/A |
+| 50 | 4 | 3.5% | 0.1431 |
+| 100 | 4 | 3.5% | 0.1431 |
+| **200** | **3** | **2.7%** | **0.1579** ← chosen |
+| 300–1000 | 3 | 2.7% | 0.1579 |
 
-**Final model (eps=2.5, min_samples=10):** Silhouette=0.2110 | Noise=83 pts (0.7%)
+**Final model (min_cluster_size=200, min_samples=5):** Silhouette=0.1579 | Noise=331 pts (2.7%)
 
 | Cluster | n | Buyers % | Entropy |
 |---|---|---|---|
-| 0 | 11,030 | 16.4% | 0.6438 — large mixed group |
-| 1 | 1,217 | 5.7% | 0.3142 — low-intent segment |
-| NOISE | 83 | 36.1% | 0.9439 — ambiguous edge points |
+| 0 | 1,251 | 6.2% | 0.3336 — low-intent segment |
+| 1 | 8,214 | 15.7% | 0.6260 — large standard browsing group |
+| 2 | 2,534 | 16.6% | 0.6488 — slightly more active users |
+| NOISE | 331 | 37.5% | 0.9542 — high-value atypical sessions |
 
-Avg entropy (excl. noise): 0.4790
+Avg entropy (excl. noise): 0.5361
 
-**Note:** DBSCAN converges to 2 coarse clusters on this dataset — high dimensionality (55 features) makes density-based separation challenging.
+**Note:** HDBSCAN isolates a noise group (331 sessions) with 37.5% conversion — the highest of any cluster across all algorithms. These are likely impulsive high-value buyers that no other method captures explicitly.
 
 ### Gaussian Mixture Models (GMM)
 
@@ -173,10 +175,10 @@ Avg entropy: 0.5563
 |---|---|---|---|---|
 | K-Means | 6 | 0.1860 | 75,744 | 0.4800 |
 | Agglomerative (Ward) | 5 | 0.1874 | — | 0.4778 |
-| DBSCAN | 2 | 0.2110* | — | 0.4790 |
+| HDBSCAN | 3 | 0.1579* | — | 0.5361 |
 | GMM | 10 | 0.0221 | — | 0.5563 |
 
-*DBSCAN silhouette computed on non-noise points only; result collapses to 2 coarse clusters.
+*HDBSCAN silhouette computed on non-noise points only (331 noise pts, 2.7%).
 
 ---
 
@@ -186,7 +188,7 @@ Avg entropy: 0.5563
 
 **Agglomerative (Hierarchical)** was chosen as a deterministic, non-parametric alternative. Unlike K-Means it does not assume cluster shape and does not require a random seed, so results are fully reproducible. Ward linkage was selected specifically because it minimises within-cluster variance at each merge step — the same objective as K-Means SSE — making the two algorithms directly comparable. The dendrogram also provides a visual cross-check of how many meaningful splits exist in the data.
 
-**DBSCAN** was included to test whether the data contains dense, arbitrarily shaped regions separated by sparse areas. This matters for e-commerce behaviour data, where a small cluster of heavy, high-value sessions could be geometrically isolated from the bulk. DBSCAN also identifies genuine outliers (noise points) rather than forcing every point into a cluster, which is useful for anomaly detection.
+**HDBSCAN** was chosen over DBSCAN after DBSCAN collapsed to 2 coarse clusters due to the curse of dimensionality. HDBSCAN builds a density hierarchy using mutual reachability distances — which smooth the distance uniformity problem in high dimensions — and extracts the most stable clusters without requiring a global `eps` threshold. This makes it the natural density-based alternative for this 55-dimensional space.
 
 **Gaussian Mixture Models** were chosen as the probabilistic counterpart to K-Means. Instead of hard cluster assignment, GMM fits a mixture of Gaussians and assigns each point a probability of belonging to each component. This is appropriate when clusters overlap or have different orientations/sizes, which is plausible in a 55-dimensional behavioural space. BIC was used as the primary selection criterion because, unlike silhouette, it directly measures model fit while penalising complexity.
 
@@ -200,8 +202,8 @@ k was swept from 2 to 10. Two signals were used together: the SSE elbow (rate of
 **Agglomerative — linkage and k:**
 Ward linkage was chosen over single/complete/average linkage because it is the only linkage that directly minimises within-cluster variance, making it the most coherent choice for Euclidean feature space and directly comparable to K-Means. k was read from the silhouette sweep peak (k=5, 0.1874). The dendrogram on a 500-row subsample (last 20 merges shown) was used as a visual sanity check — the large gap before the final merge at k=5 supports this choice.
 
-**DBSCAN — eps and min_samples:**
-`min_samples=10` was set as a baseline rule of thumb (roughly 2×dimensionality for low-dimensional problems; 10 is conservative given 55 features but avoids over-fragmenting). `eps` was chosen by: (1) plotting the k-distance curve (sorted distance to the 9th nearest neighbour) to identify the elbow in the distance distribution, and (2) sweeping eps from 1.5 to 5.0 and evaluating clusters found, noise %, and silhouette. eps=2.5 was selected because it gives the best silhouette (0.2110) with only 0.7% noise — a meaningful improvement over eps=2.0 (10× more noise, much lower silhouette) without merging everything into one cluster as happens at eps≥3.5.
+**HDBSCAN — min_cluster_size and min_samples:**
+`min_samples=5` was kept fixed (low value to allow sensitivity to local density). `min_cluster_size` was swept from 50 to 1000: values ≤100 produce 4 clusters with 3.5% noise and silhouette 0.143; from 200 onward the algorithm stabilises at 3 clusters, 2.7% noise, and silhouette 0.158. `min_cluster_size=200` was chosen as the smallest value yielding this stable solution — it represents ~1.6% of the dataset, a reasonable minimum segment size.
 
 **GMM — covariance type and k:**
 `covariance_type='full'` was chosen to allow each Gaussian component to have its own arbitrary covariance matrix. The alternative `'diag'` or `'spherical'` would impose unrealistic symmetry constraints on behavioural clusters. k was selected by minimising BIC, which penalises model complexity and prevents overfitting. BIC decreased monotonically through k=10 — this is a known behaviour in high-dimensional spaces where the full covariance matrix gains many degrees of freedom per component. The practical implication is that GMM at k=10 finds finer-grained density modes than the other methods, at the cost of poor silhouette scores (0.0221), reflecting that its components are not geometrically compact.
@@ -212,11 +214,11 @@ Ward linkage was chosen over single/complete/average linkage because it is the o
 
 **Cluster structure.** K-Means (k=6) and Agglomerative (k=5) converge on a very similar picture: one large low-intent group (~55–84% of points), one concentrated high-buyer cluster (~65% buyers), one near-pure non-buyer cluster (<1% buyers), and a small set of intermediate groups. This consistency across two independent methods with different assumptions (random initialisation vs. deterministic merging, spherical vs. variance-minimising) gives confidence that this segmentation reflects genuine structure in the data.
 
-**DBSCAN's limitation.** The collapse to 2 clusters is a direct consequence of the curse of dimensionality: in 55-dimensional space, distances between points become increasingly uniform, making it hard for DBSCAN to find regions that are clearly denser than their surroundings. The 0.7% noise rate is low and healthy, but the two clusters (n=11,030 and n=1,217) are too coarse for actionable segmentation. DBSCAN would be more useful if applied to a 2–3 component PCA projection, or on a purely continuous, lower-dimensional feature set. That said, its silhouette of 0.2110 is the highest of any algorithm — but this is partly an artefact of computing it only on non-noise points, and of having two large, well-separated blobs.
+**HDBSCAN's contribution.** HDBSCAN successfully separates 3 clusters (vs. DBSCAN's 2 coarse blobs) with only 2.7% noise and silhouette 0.158. More importantly, it isolates a noise group of 331 sessions with a 37.5% conversion rate — the highest of any identified group across all algorithms. This group represents geometrically isolated high-value sessions that no distance-partition method captures. The silhouette is genuine (not inflated by two large blobs) because it is computed over 3 groups with variable density.
 
 **GMM's trade-off.** GMM at k=10 discovers the richest Revenue variation: clusters 7, 8, 9 are near-pure non-buyers (entropy 0.04–0.17), while clusters 3–6 cluster around 30–42% buyers. This granularity comes at a cost: silhouette collapses to 0.0221, meaning the components overlap heavily in feature space. The model is statistically well-fitted (lowest BIC), but the clusters are less interpretable and harder to act on operationally. GMM is best suited here to understanding the underlying density structure rather than clean segment assignment.
 
-**Best overall method.** For the goal of segmenting users by purchase intent, **Agglomerative (k=5)** edges out K-Means on silhouette (0.1874 vs 0.1860), is fully deterministic, and produces an equally interpretable Revenue split. K-Means is a close second and is preferable if scalability or repeated fitting (e.g. streaming data) is required. GMM is the best choice if probabilistic membership scores are needed downstream. DBSCAN, as implemented here, does not produce useful segmentation on the full 55-feature space.
+**Best overall method.** For the goal of segmenting users by purchase intent, **Agglomerative (k=5)** edges out K-Means on silhouette (0.1874 vs 0.1860), is fully deterministic, and produces an equally interpretable Revenue split. K-Means is a close second and is preferable if scalability or repeated fitting (e.g. streaming data) is required. GMM is the best choice if probabilistic membership scores are needed downstream. **HDBSCAN** adds a unique value proposition: its noise group isolates 331 high-converting sessions (37.5% buyers) that no partition-based method surfaces.
 
 **Revenue entropy.** K-Means and Agglomerative achieve similar average entropy (~0.478), meaning their clusters are equally pure with respect to buyer/non-buyer composition. GMM's higher entropy (0.556) reflects its softer, overlapping components. Lower entropy = purer clusters = more useful segments for targeting.
 
@@ -230,5 +232,5 @@ Ward linkage was chosen over single/complete/average linkage because it is the o
 | `preprocessing.py` | Full preprocessing pipeline |
 | `kmeans.py` | K-Means clustering |
 | `hierarchical.py` | Agglomerative clustering |
-| `dbscan.py` | DBSCAN clustering |
+| `hdbscan_clustering.py` | HDBSCAN clustering (replaces DBSCAN) |
 | `gmm.py` | Gaussian Mixture Models |

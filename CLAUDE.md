@@ -57,7 +57,7 @@ Or refactor `preprocessing.py` to expose `get_data()` if needed.
 
 1. **K-Means** — elbow method + silhouette to pick k, then fit and evaluate
 2. **Agglomerative (Hierarchical)** — try Ward linkage; dendrogram optional
-3. **DBSCAN** — density-based; tune eps and min_samples
+3. **HDBSCAN** — density-based (replaces DBSCAN); tune min_cluster_size
 4. **Gaussian Mixture Models** — model-based; tune n_components
 
 ## Evaluation Metrics (apply to every algorithm)
