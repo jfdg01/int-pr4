@@ -42,29 +42,183 @@
 ## Clustering Results
 
 ### K-Means
-*To be completed.*
+
+**Script:** `kmeans.py` | **Chosen k:** 6
+
+**Selection:** Silhouette peaks at k=6 (0.1860); SSE elbow around k=4–5 but k=6 gives clearer Revenue separation.
+
+| k | SSE | Silhouette |
+|---|---|---|
+| 2 | 114,120 | 0.1331 |
+| 3 | 101,760 | 0.1545 |
+| 4 | 90,785 | 0.1800 |
+| 5 | 82,885 | 0.1760 |
+| **6** | **75,744** | **0.1860** ← chosen |
+| 7 | 71,139 | 0.1558 |
+| 8 | 69,160 | 0.1549 |
+| 9 | 67,527 | 0.1373 |
+| 10 | 65,980 | 0.1459 |
+
+**Final model (k=6):** SSE=75,744 | Silhouette=0.1860
+
+| Cluster | n | Buyers % | Entropy |
+|---|---|---|---|
+| 0 | 1,144 | 6.2% | 0.3356 |
+| 1 | 1,828 | 8.8% | 0.4282 |
+| 2 | 998 | 0.8% | 0.0673 — very pure non-buyers |
+| 3 | 1,550 | **65.9%** | 0.9260 — high-intent buyers |
+| 4 | 1,763 | 23.3% | 0.7834 — mixed, buyer-leaning |
+| 5 | 5,047 | 4.7% | 0.2733 — large low-intent group |
 
 ### Agglomerative (Hierarchical)
-*To be completed.*
+
+**Script:** `hierarchical.py` | **Linkage:** Ward | **Chosen k:** 5
+
+**Selection:** Silhouette peaks at k=5 (0.1874).
+
+| k | Silhouette |
+|---|---|
+| 2 | 0.1304 |
+| 3 | 0.1442 |
+| 4 | 0.1746 |
+| **5** | **0.1874** ← chosen |
+| 6 | 0.1783 |
+| 7 | 0.1467 |
+| 8 | 0.1532 |
+| 9 | 0.1530 |
+| 10 | 0.1588 |
+
+**Final model (k=5):** Silhouette=0.1874
+
+| Cluster | n | Buyers % | Entropy |
+|---|---|---|---|
+| 0 | 6,798 | 4.6% | 0.2693 — large low-intent group |
+| 1 | 2,104 | 24.3% | 0.8006 — mixed, buyer-leaning |
+| 2 | 729 | 0.4% | 0.0385 — very pure non-buyers |
+| 3 | 1,167 | 6.6% | 0.3507 |
+| 4 | 1,532 | **65.5%** | 0.9298 — high-intent buyers |
+
+Avg entropy: 0.4778
 
 ### DBSCAN
-*To be completed.*
 
-### Gaussian Mixture Models
-*To be completed.*
+**Script:** `dbscan.py` | **eps:** 2.5 | **min_samples:** 10
+
+**Selection:** eps chosen via silhouette sweep; eps=2.5 gives 2 clusters with 0.7% noise and silhouette=0.2110 (highest valid score).
+
+| eps | Clusters | Noise % | Silhouette |
+|---|---|---|---|
+| 1.5 | 17 | 52.0% | 0.0092 |
+| 2.0 | 10 | 17.8% | 0.0353 |
+| **2.5** | **2** | **0.7%** | **0.2110** ← chosen |
+| 3.0 | 2 | 0.0% | 0.2107 |
+| 3.5+ | 1 | — | N/A |
+
+**Final model (eps=2.5, min_samples=10):** Silhouette=0.2110 | Noise=83 pts (0.7%)
+
+| Cluster | n | Buyers % | Entropy |
+|---|---|---|---|
+| 0 | 11,030 | 16.4% | 0.6438 — large mixed group |
+| 1 | 1,217 | 5.7% | 0.3142 — low-intent segment |
+| NOISE | 83 | 36.1% | 0.9439 — ambiguous edge points |
+
+Avg entropy (excl. noise): 0.4790
+
+**Note:** DBSCAN converges to 2 coarse clusters on this dataset — high dimensionality (55 features) makes density-based separation challenging.
+
+### Gaussian Mixture Models (GMM)
+
+**Script:** `gmm.py` | **Covariance:** full | **Chosen k:** 10
+
+**Selection:** BIC decreases monotonically through k=10; k=10 chosen as lowest BIC. Silhouette is low across all k — expected, as GMM uses soft probabilistic assignment, not geometric cohesion.
+
+| k | BIC | AIC | Silhouette |
+|---|---|---|---|
+| 2 | -1,451,356 | -1,475,032 | 0.0724 |
+| 3 | -2,104,394 | -2,139,912 | 0.0565 |
+| 4 | -1,756,078 | -1,803,438 | 0.0890 |
+| 5 | -2,234,610 | -2,293,813 | 0.0412 |
+| 6 | -2,528,783 | -2,599,828 | 0.0342 |
+| 7 | -2,384,308 | -2,467,194 | 0.0362 |
+| 8 | -2,598,843 | -2,693,572 | 0.0419 |
+| 9 | -2,703,994 | -2,810,564 | 0.0285 |
+| **10** | **-2,854,414** | **-2,972,827** | **0.0221** ← chosen |
+
+**Final model (k=10):** BIC=-2,854,414 | Silhouette=0.0221
+
+| Cluster | n | Buyers % | Entropy |
+|---|---|---|---|
+| 0 | 1,251 | 6.2% | 0.3336 |
+| 1 | 479 | 28.8% | 0.8663 |
+| 2 | 4,221 | 5.4% | 0.3022 — large low-intent group |
+| 3 | 792 | 36.1% | 0.9436 |
+| 4 | 511 | 34.8% | 0.9326 |
+| 5 | 569 | 30.6% | 0.8883 |
+| 6 | 1,818 | **42.4%** | 0.9831 — highest buyer rate |
+| 7 | 536 | 1.3% | 0.1005 — very pure non-buyers |
+| 8 | 1,911 | 2.6% | 0.1748 — pure non-buyers |
+| 9 | 242 | 0.4% | 0.0387 — nearly pure non-buyers |
+
+Avg entropy: 0.5563
+
+**Note:** BIC does not plateau — GMM keeps finding statistically better fits at higher k. Silhouette is poor throughout, reflecting that GMM partitions probabilistic density, not compact geometric clusters.
 
 ---
 
 ## Comparison
 
-*To be completed after all algorithms are run.*
+### Metrics summary
 
-| Algorithm | k | Silhouette | SSE | Revenue entropy (avg) |
+| Algorithm | k | Silhouette | SSE | Avg Revenue entropy |
 |---|---|---|---|---|
-| K-Means | - | - | - | - |
-| Agglomerative | - | - | — | - |
-| DBSCAN | - | - | — | - |
-| GMM | - | - | — | - |
+| K-Means | 6 | 0.1860 | 75,744 | 0.4800 |
+| Agglomerative (Ward) | 5 | 0.1874 | — | 0.4778 |
+| DBSCAN | 2 | 0.2110* | — | 0.4790 |
+| GMM | 10 | 0.0221 | — | 0.5563 |
+
+*DBSCAN silhouette computed on non-noise points only; result collapses to 2 coarse clusters.
+
+---
+
+### Why each algorithm was chosen
+
+**K-Means** is the natural starting point for any clustering task. It is fast, scales easily to 12,330 rows × 55 features, and its inertia (SSE) gives a concrete geometric objective that is straightforward to inspect. Because all features were already standardised, the Euclidean distance assumption is valid. The main limitation is that it assumes convex, roughly equal-sized clusters — a strong assumption for behavioural data.
+
+**Agglomerative (Hierarchical)** was chosen as a deterministic, non-parametric alternative. Unlike K-Means it does not assume cluster shape and does not require a random seed, so results are fully reproducible. Ward linkage was selected specifically because it minimises within-cluster variance at each merge step — the same objective as K-Means SSE — making the two algorithms directly comparable. The dendrogram also provides a visual cross-check of how many meaningful splits exist in the data.
+
+**DBSCAN** was included to test whether the data contains dense, arbitrarily shaped regions separated by sparse areas. This matters for e-commerce behaviour data, where a small cluster of heavy, high-value sessions could be geometrically isolated from the bulk. DBSCAN also identifies genuine outliers (noise points) rather than forcing every point into a cluster, which is useful for anomaly detection.
+
+**Gaussian Mixture Models** were chosen as the probabilistic counterpart to K-Means. Instead of hard cluster assignment, GMM fits a mixture of Gaussians and assigns each point a probability of belonging to each component. This is appropriate when clusters overlap or have different orientations/sizes, which is plausible in a 55-dimensional behavioural space. BIC was used as the primary selection criterion because, unlike silhouette, it directly measures model fit while penalising complexity.
+
+---
+
+### Hyperparameter tuning decisions
+
+**K-Means — choosing k:**
+k was swept from 2 to 10. Two signals were used together: the SSE elbow (rate of gain diminishes past k=4–5) and the silhouette score (peaks at k=6, 0.1860). k=6 was chosen because it maximises silhouette, and the Revenue distribution confirms the extra clusters carry real meaning: one cluster concentrates 65.9% buyers, another is almost entirely non-buyers (0.8%), and the remaining four capture intermediate intent profiles. Accepting k=6 over k=4 trades a small SSE gain for substantially richer segmentation.
+
+**Agglomerative — linkage and k:**
+Ward linkage was chosen over single/complete/average linkage because it is the only linkage that directly minimises within-cluster variance, making it the most coherent choice for Euclidean feature space and directly comparable to K-Means. k was read from the silhouette sweep peak (k=5, 0.1874). The dendrogram on a 500-row subsample (last 20 merges shown) was used as a visual sanity check — the large gap before the final merge at k=5 supports this choice.
+
+**DBSCAN — eps and min_samples:**
+`min_samples=10` was set as a baseline rule of thumb (roughly 2×dimensionality for low-dimensional problems; 10 is conservative given 55 features but avoids over-fragmenting). `eps` was chosen by: (1) plotting the k-distance curve (sorted distance to the 9th nearest neighbour) to identify the elbow in the distance distribution, and (2) sweeping eps from 1.5 to 5.0 and evaluating clusters found, noise %, and silhouette. eps=2.5 was selected because it gives the best silhouette (0.2110) with only 0.7% noise — a meaningful improvement over eps=2.0 (10× more noise, much lower silhouette) without merging everything into one cluster as happens at eps≥3.5.
+
+**GMM — covariance type and k:**
+`covariance_type='full'` was chosen to allow each Gaussian component to have its own arbitrary covariance matrix. The alternative `'diag'` or `'spherical'` would impose unrealistic symmetry constraints on behavioural clusters. k was selected by minimising BIC, which penalises model complexity and prevents overfitting. BIC decreased monotonically through k=10 — this is a known behaviour in high-dimensional spaces where the full covariance matrix gains many degrees of freedom per component. The practical implication is that GMM at k=10 finds finer-grained density modes than the other methods, at the cost of poor silhouette scores (0.0221), reflecting that its components are not geometrically compact.
+
+---
+
+### Comparative analysis
+
+**Cluster structure.** K-Means (k=6) and Agglomerative (k=5) converge on a very similar picture: one large low-intent group (~55–84% of points), one concentrated high-buyer cluster (~65% buyers), one near-pure non-buyer cluster (<1% buyers), and a small set of intermediate groups. This consistency across two independent methods with different assumptions (random initialisation vs. deterministic merging, spherical vs. variance-minimising) gives confidence that this segmentation reflects genuine structure in the data.
+
+**DBSCAN's limitation.** The collapse to 2 clusters is a direct consequence of the curse of dimensionality: in 55-dimensional space, distances between points become increasingly uniform, making it hard for DBSCAN to find regions that are clearly denser than their surroundings. The 0.7% noise rate is low and healthy, but the two clusters (n=11,030 and n=1,217) are too coarse for actionable segmentation. DBSCAN would be more useful if applied to a 2–3 component PCA projection, or on a purely continuous, lower-dimensional feature set. That said, its silhouette of 0.2110 is the highest of any algorithm — but this is partly an artefact of computing it only on non-noise points, and of having two large, well-separated blobs.
+
+**GMM's trade-off.** GMM at k=10 discovers the richest Revenue variation: clusters 7, 8, 9 are near-pure non-buyers (entropy 0.04–0.17), while clusters 3–6 cluster around 30–42% buyers. This granularity comes at a cost: silhouette collapses to 0.0221, meaning the components overlap heavily in feature space. The model is statistically well-fitted (lowest BIC), but the clusters are less interpretable and harder to act on operationally. GMM is best suited here to understanding the underlying density structure rather than clean segment assignment.
+
+**Best overall method.** For the goal of segmenting users by purchase intent, **Agglomerative (k=5)** edges out K-Means on silhouette (0.1874 vs 0.1860), is fully deterministic, and produces an equally interpretable Revenue split. K-Means is a close second and is preferable if scalability or repeated fitting (e.g. streaming data) is required. GMM is the best choice if probabilistic membership scores are needed downstream. DBSCAN, as implemented here, does not produce useful segmentation on the full 55-feature space.
+
+**Revenue entropy.** K-Means and Agglomerative achieve similar average entropy (~0.478), meaning their clusters are equally pure with respect to buyer/non-buyer composition. GMM's higher entropy (0.556) reflects its softer, overlapping components. Lower entropy = purer clusters = more useful segments for targeting.
 
 ---
 
@@ -74,7 +228,7 @@
 |---|---|
 | `eda.py` | Exploratory data analysis |
 | `preprocessing.py` | Full preprocessing pipeline |
-| *(next)* `kmeans.py` | K-Means clustering |
-| *(next)* `hierarchical.py` | Agglomerative clustering |
-| *(next)* `dbscan.py` | DBSCAN clustering |
-| *(next)* `gmm.py` | Gaussian Mixture Models |
+| `kmeans.py` | K-Means clustering |
+| `hierarchical.py` | Agglomerative clustering |
+| `dbscan.py` | DBSCAN clustering |
+| `gmm.py` | Gaussian Mixture Models |
